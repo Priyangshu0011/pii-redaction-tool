@@ -41,7 +41,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/priyangshusett/pii-redaction-tool.git
+git clone https://github.com/Priyangshu0011/pii-redaction-tool.git
 cd pii-redaction-tool
 
 # Install dependencies
