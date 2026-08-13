@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluation Strategy & Metrics — PII Redactor</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .doc-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            backdrop-filter: blur(16px);
+            margin-top: 1rem;
+        }
+        .doc-container h1, .doc-container h2, .doc-container h3 {
+            font-family: var(--font-heading);
+            color: #fff;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .doc-container h1 { font-size: 2.2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        .doc-container p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .doc-container table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+        .doc-container th, .doc-container td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+        .doc-container th {
+            background: rgba(99, 102, 241, 0.15);
+            color: #fff;
+            font-family: var(--font-heading);
+        }
+        .doc-container code, .doc-container pre {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.2rem 0.4rem;
+            font-family: monospace;
+            color: #a5b4fc;
+        }
+        .doc-container pre {
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .doc-container blockquote {
+            border-left: 4px solid var(--accent-primary);
+            background: rgba(99, 102, 241, 0.08);
+            padding: 1rem 1.25rem;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <a href="/" class="brand">
+                <div class="brand-icon">🛡️</div>
+                <span>PII Redactor Pro</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Dashboard</a>
+                <a href="/evaluation-doc" class="nav-link active">Evaluation Report</a>
+                <a href="/api/download/Red_Herring_Prospectus_REDACTED.docx" class="nav-link" style="color: var(--accent-success);">Download Sample Docx</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="doc-container">
+            {{ content | safe }}
+        </div>
+    </main>
+
+    <footer>
+        <p>Enterprise Data Assignment Submission — Evaluation Report</p>
+    </footer>
+</body>
+</html>

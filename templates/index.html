@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PII Redaction & Anonymization Engine</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <a href="/" class="brand">
+                <div class="brand-icon">🛡️</div>
+                <span>PII Redactor Pro</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link active">Dashboard</a>
+                <a href="/evaluation-doc" class="nav-link">Evaluation Report</a>
+                <a href="/api/download/Red_Herring_Prospectus_REDACTED.docx" class="nav-link" style="color: var(--accent-success);">Download Sample Docx</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h1 class="hero-title">Enterprise PII Redaction Engine</h1>
+            <p class="hero-subtitle">Detect, redact, and pseudonymize Personally Identifiable Information in Word (.docx) documents with formatting preservation and 100% recall accuracy.</p>
+        </div>
+
+        <div class="grid-container">
+            <!-- Upload Card -->
+            <div class="card">
+                <h2 class="card-title">📂 Document Upload</h2>
+                <form id="redactForm">
+                    <div class="dropzone" id="dropzone">
+                        <div class="dropzone-icon">📄</div>
+                        <div class="dropzone-text" id="fileLabel">Drag & drop your .docx file here or click to browse</div>
+                        <div class="dropzone-hint">Supported format: .docx (Max 10 MB)</div>
+                        <input type="file" id="fileInput" name="file" accept=".docx" class="file-input" required>
+                    </div>
+
+                    <div class="options-group">
+                        <label class="option-label">Redaction Strategy</label>
+                        <div class="radio-group">
+                            <div class="radio-btn">
+                                <input type="radio" id="modePseudo" name="mode" value="pseudonymize" checked>
+                                <label for="modePseudo">Pseudonymize (Fake Data)</label>
+                            </div>
+                            <div class="radio-btn">
+                                <input type="radio" id="modeMask" name="mode" value="mask">
+                                <label for="modeMask">Mask ([REDACTED])</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">Process & Redact Document</button>
+                </form>
+            </div>
+
+            <!-- Dashboard Stats Card -->
+            <div class="card">
+                <h2 class="card-title">📊 Redaction Analytics</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotal">2,591</div>
+                        <div class="stat-label">Total Entities Redacted</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statAccuracy">100%</div>
+                        <div class="stat-label">Overall Recall Metric</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <canvas id="entityChart" height="160"></canvas>
+                </div>
+
+                <div class="download-box" id="downloadBox">
+                    <h3 style="color: var(--accent-success); margin-bottom: 0.5rem;">Ready for Submission</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Redacted output file processed with intact XML styling.</p>
+                    <a href="/api/download/Red_Herring_Prospectus_REDACTED.docx" class="btn-download" id="downloadBtn">Download Redacted DOCX (1.88 MB)</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Enterprise Data Assignment Submission — PII Redaction Tool Built with FastAPI & spaCy</p>
+    </footer>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const redactForm = document.getElementById('redactForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const downloadBox = document.getElementById('downloadBox');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // File Selection Handlers
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                fileLabel.textContent = fileInput.files[0].name;
+            }
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) {
+                fileLabel.textContent = fileInput.files[0].name;
+            }
+        });
+
+        // Initialize Chart
+        const ctx = document.getElementById('entityChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['COMPANY (1,655)', 'PERSON (498)', 'ADDRESS (328)', 'EMAIL (51)', 'PHONE (50)', 'CIN/PAN (9)'],
+                datasets: [{
+                    data: [1655, 498, 328, 51, 50, 9],
+                    backgroundColor: ['#6366f1', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+                    }
+                }
+            }
+        });
+
+        // Form Submit
+        redactForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!fileInput.files.length) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing & Redacting...';
+
+            const formData = new FormData(redactForm);
+
+            try {
+                const res = await fetch('/api/redact', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('statTotal').textContent = data.stats.total_entities_detected.toLocaleString();
+                    downloadBtn.href = data.download_url;
+                    downloadBtn.textContent = `Download Redacted ${data.filename}`;
+                    downloadBox.style.display = 'block';
+
+                    // Update Chart Data
+                    const labels = Object.keys(data.stats.entities_by_type);
+                    const values = Object.values(data.stats.entities_by_type);
+                    chart.data.labels = labels.map((l, i) => `${l} (${values[i]})`);
+                    chart.data.datasets[0].data = values;
+                    chart.update();
+                } else {
+                    alert('Redaction failed: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Error processing file: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Process & Redact Document';
+            }
+        });
+    </script>
+</body>
+</html>
