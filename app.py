@@ -39,7 +39,7 @@ evaluator = PIIEvaluator(detector=detector)
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     """Render the main interactive dashboard."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.get("/evaluation-doc", response_class=HTMLResponse)
@@ -52,7 +52,7 @@ async def get_evaluation_doc(request: Request):
             md_text = f.read()
             html_content = markdown.markdown(md_text, extensions=['tables', 'fenced_code'])
 
-    return templates.TemplateResponse("doc.html", {"request": request, "content": html_content})
+    return templates.TemplateResponse(request=request, name="doc.html", context={"content": html_content})
 
 
 @app.post("/api/redact")
