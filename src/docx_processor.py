@@ -87,22 +87,46 @@ class DocxProcessor:
             if not entities:
                 continue
 
-            sorted_entities = sorted(entities, key=lambda x: x["start"], reverse=True)
-            for ent in sorted_entities:
-                orig_text = ent["text"]
-                pii_type = ent["type"]
-                replacement = self.anonymizer.anonymize(orig_text, pii_type)
+            if len(paragraph.runs) == 1:
+                full_text = paragraph.text
+                parts = []
+                last_pos = 0
+                for ent in sorted(entities, key=lambda x: x["start"]):
+                    orig_text = ent["text"]
+                    pii_type = ent["type"]
+                    replacement = self.anonymizer.anonymize(orig_text, pii_type)
 
-                stats["total_entities_detected"] += 1
-                stats["entities_by_type"][pii_type] = stats["entities_by_type"].get(pii_type, 0) + 1
-                stats["detected_list"].append({
-                    "original": orig_text,
-                    "replacement": replacement,
-                    "type": pii_type,
-                    "source": ent.get("source", "UNKNOWN")
-                })
+                    stats["total_entities_detected"] += 1
+                    stats["entities_by_type"][pii_type] = stats["entities_by_type"].get(pii_type, 0) + 1
+                    stats["detected_list"].append({
+                        "original": orig_text,
+                        "replacement": replacement,
+                        "type": pii_type,
+                        "source": ent.get("source", "UNKNOWN")
+                    })
 
-                self._replace_text_in_runs(paragraph, ent["start"], ent["end"], replacement)
+                    parts.append(full_text[last_pos:ent["start"]])
+                    parts.append(replacement)
+                    last_pos = ent["end"]
+                parts.append(full_text[last_pos:])
+                paragraph.runs[0].text = "".join(parts)
+            else:
+                sorted_entities = sorted(entities, key=lambda x: x["start"], reverse=True)
+                for ent in sorted_entities:
+                    orig_text = ent["text"]
+                    pii_type = ent["type"]
+                    replacement = self.anonymizer.anonymize(orig_text, pii_type)
+
+                    stats["total_entities_detected"] += 1
+                    stats["entities_by_type"][pii_type] = stats["entities_by_type"].get(pii_type, 0) + 1
+                    stats["detected_list"].append({
+                        "original": orig_text,
+                        "replacement": replacement,
+                        "type": pii_type,
+                        "source": ent.get("source", "UNKNOWN")
+                    })
+
+                    self._replace_text_in_runs(paragraph, ent["start"], ent["end"], replacement)
 
         # Save output document
         doc.save(output_path)

@@ -290,7 +290,10 @@ class PIIDetector:
                 ner_texts.append(text)
 
         if ner_texts:
-            for c_idx, doc in zip(ner_candidate_positions, self.nlp.pipe(ner_texts, batch_size=32)):
+            unique_ner_texts = list(set(ner_texts))
+            ner_cache = {}
+            for doc, raw_text in zip(self.nlp.pipe(unique_ner_texts, batch_size=32), unique_ner_texts):
+                ent_list = []
                 for ent in doc.ents:
                     pii_type = None
                     words = [w.lower() for w in ent.text.split()]
@@ -306,7 +309,7 @@ class PIIDetector:
                         pii_type = "ADDRESS"
 
                     if pii_type and (not entity_types or pii_type in entity_types):
-                        results[c_idx].append({
+                        ent_list.append({
                             "text": ent.text,
                             "type": pii_type,
                             "start": ent.start_char,
@@ -314,6 +317,11 @@ class PIIDetector:
                             "confidence": 0.88,
                             "source": "NER"
                         })
+                ner_cache[raw_text] = ent_list
+
+            for c_idx, raw_text in zip(ner_candidate_positions, ner_texts):
+                if raw_text in ner_cache:
+                    results[c_idx].extend(ner_cache[raw_text])
 
         # 4. Sub-Name Propagation Pass for standalone Person names
         detected_person_tokens = set()
@@ -326,13 +334,16 @@ class PIIDetector:
                             detected_person_tokens.add(w)
 
         if detected_person_tokens and (not entity_types or "PERSON" in entity_types):
-            for c_idx, text in zip(candidate_indices, candidate_texts):
-                for token in detected_person_tokens:
-                    pattern = re.compile(rf'\b{re.escape(token)}\b')
-                    for match in pattern.finditer(text):
+            sorted_tokens = sorted(detected_person_tokens, key=len, reverse=True)
+            valid_tokens = [t for t in sorted_tokens if len(t) >= 3 and t not in STOP_CAPS]
+            if valid_tokens:
+                pattern_str = r'\b(?:' + '|'.join(map(re.escape, valid_tokens)) + r')\b'
+                sub_pattern = re.compile(pattern_str)
+                for c_idx, text in zip(candidate_indices, candidate_texts):
+                    for match in sub_pattern.finditer(text):
                         matched_str = match.group()
                         start, end = match.span()
-                        if not any(e["start"] == start and e["end"] == end for e in results[c_idx]):
+                        if not any(e["start"] <= start and e["end"] >= end for e in results[c_idx]):
                             results[c_idx].append({
                                 "text": matched_str,
                                 "type": "PERSON",
