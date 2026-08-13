@@ -178,6 +178,102 @@ class PIIDetector:
         entities = self._resolve_overlaps(entities)
         return entities
 
+    def detect_batch(self, texts: List[str], entity_types: List[str] = None) -> List[List[Dict[str, Any]]]:
+        """
+        High-performance batch detection across multiple texts using spaCy nlp.pipe.
+        Returns a list of entity lists for each corresponding text element.
+        """
+        results = [[] for _ in texts]
+        if not texts:
+            return results
+
+        # 1. Fast pre-filter candidate texts
+        candidate_indices = []
+        candidate_texts = []
+        for idx, text in enumerate(texts):
+            if text and len(text.strip()) >= 3 and any(c.isupper() or c.isdigit() or c in "@+" for c in text):
+                candidate_indices.append(idx)
+                candidate_texts.append(text)
+
+        if not candidate_texts:
+            return results
+
+        # 2. Vectorized Regex & Domain Heuristics
+        for c_idx, text in zip(candidate_indices, candidate_texts):
+            for pii_type, pattern in self.regex_patterns.items():
+                if entity_types and pii_type not in entity_types:
+                    continue
+                for match in pattern.finditer(text):
+                    matched_text = match.group()
+                    start, end = match.span()
+                    if pii_type == "PHONE" and not self._is_valid_phone(matched_text, text, start, end):
+                        continue
+                    results[c_idx].append({
+                        "text": matched_text,
+                        "type": pii_type,
+                        "start": start,
+                        "end": end,
+                        "confidence": 0.98,
+                        "source": "REGEX"
+                    })
+
+            promoter_match = re.search(r'OUR PROMOTERS:\s*([^\n]+)', text, re.IGNORECASE)
+            if promoter_match and (not entity_types or "PERSON" in entity_types):
+                names_block = promoter_match.group(1)
+                raw_names = re.split(r',\s*|\s+AND\s+', names_block)
+                base_start = promoter_match.start(1)
+                for name in raw_names:
+                    name_clean = name.strip()
+                    if len(name_clean) > 3 and "LIMITED" not in name_clean and "TRUST" not in name_clean:
+                        n_start = text.find(name_clean, base_start)
+                        if n_start != -1:
+                            results[c_idx].append({
+                                "text": name_clean,
+                                "type": "PERSON",
+                                "start": n_start,
+                                "end": n_start + len(name_clean),
+                                "confidence": 0.96,
+                                "source": "HEURISTIC"
+                            })
+
+        # 3. Batch spaCy NER via nlp.pipe
+        ner_candidate_positions = []
+        ner_texts = []
+        for c_idx, text in zip(candidate_indices, candidate_texts):
+            if any(c.isupper() for c in text):
+                ner_candidate_positions.append(c_idx)
+                ner_texts.append(text)
+
+        if ner_texts:
+            for c_idx, doc in zip(ner_candidate_positions, self.nlp.pipe(ner_texts, batch_size=250)):
+                for ent in doc.ents:
+                    pii_type = None
+                    if ent.label_ == "PERSON":
+                        pii_type = "PERSON"
+                        if len(ent.text.strip()) <= 2:
+                            continue
+                    elif ent.label_ == "ORG":
+                        pii_type = "COMPANY"
+                    elif ent.label_ in ("GPE", "LOC", "FAC"):
+                        pii_type = "ADDRESS"
+
+                    if pii_type and (not entity_types or pii_type in entity_types):
+                        results[c_idx].append({
+                            "text": ent.text,
+                            "type": pii_type,
+                            "start": ent.start_char,
+                            "end": ent.end_char,
+                            "confidence": 0.88,
+                            "source": "NER"
+                        })
+
+        # 4. Resolve overlaps for each result
+        for idx in range(len(results)):
+            if results[idx]:
+                results[idx] = self._resolve_overlaps(results[idx])
+
+        return results
+
     def _resolve_overlaps(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Remove overlapping entity spans, prioritizing higher confidence and longer spans."""
         if not entities:

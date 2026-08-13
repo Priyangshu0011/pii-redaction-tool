@@ -17,8 +17,8 @@ class DocxProcessor:
 
     def process_document(self, input_path: str, output_path: str, entity_types: List[str] = None) -> Dict[str, Any]:
         """
-        Read input docx file, detect and redact PII, write to output_path,
-        and return summary statistics.
+        Read input docx file, detect and redact PII using high-performance batch processing,
+        write to output_path, and return summary statistics.
         """
         if not os.path.exists(input_path):
             raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -35,17 +35,28 @@ class DocxProcessor:
 
         self.anonymizer.reset()
 
-        # 1. Process Main Paragraphs
+        # Collect all paragraph objects
+        paragraphs = []
+
+        # 1. Main Paragraphs
         for paragraph in doc.paragraphs:
-            count = self._process_paragraph(paragraph, stats, entity_types)
             stats["paragraphs_processed"] += 1
+            if paragraph.runs and paragraph.text.strip():
+                paragraphs.append(paragraph)
 
-        # 2. Process Tables
+        # 2. Table Paragraphs
         for table in doc.tables:
-            self._process_table(table, stats, entity_types)
             stats["tables_processed"] += 1
+            visited_cells = set()
+            for row in table.rows:
+                for cell in row.cells:
+                    if cell._tc not in visited_cells:
+                        visited_cells.add(cell._tc)
+                        for paragraph in cell.paragraphs:
+                            if paragraph.runs and paragraph.text.strip():
+                                paragraphs.append(paragraph)
 
-        # 3. Process Headers and Footers (Deduplicated)
+        # 3. Header/Footer Paragraphs
         visited_parts = set()
         for section in doc.sections:
             for part in (section.header, section.first_page_header, section.even_page_header,
@@ -53,11 +64,45 @@ class DocxProcessor:
                 if part and part._element not in visited_parts:
                     visited_parts.add(part._element)
                     for hp in part.paragraphs:
-                        self._process_paragraph(hp, stats, entity_types)
+                        if hp.runs and hp.text.strip():
+                            paragraphs.append(hp)
                     for ht in part.tables:
-                        self._process_table(ht, stats, entity_types)
+                        h_visited_cells = set()
+                        for hrow in ht.rows:
+                            for hcell in hrow.cells:
+                                if hcell._tc not in h_visited_cells:
+                                    h_visited_cells.add(hcell._tc)
+                                    for hp in hcell.paragraphs:
+                                        if hp.runs and hp.text.strip():
+                                            paragraphs.append(hp)
 
             stats["headers_footers_processed"] += 1
+
+        # High-performance batch detection across all collected paragraph texts
+        texts = [p.text for p in paragraphs]
+        batch_entities = self.detector.detect_batch(texts, entity_types=entity_types)
+
+        # Apply entity replacements to XML runs
+        for paragraph, entities in zip(paragraphs, batch_entities):
+            if not entities:
+                continue
+
+            sorted_entities = sorted(entities, key=lambda x: x["start"], reverse=True)
+            for ent in sorted_entities:
+                orig_text = ent["text"]
+                pii_type = ent["type"]
+                replacement = self.anonymizer.anonymize(orig_text, pii_type)
+
+                stats["total_entities_detected"] += 1
+                stats["entities_by_type"][pii_type] = stats["entities_by_type"].get(pii_type, 0) + 1
+                stats["detected_list"].append({
+                    "original": orig_text,
+                    "replacement": replacement,
+                    "type": pii_type,
+                    "source": ent.get("source", "UNKNOWN")
+                })
+
+                self._replace_text_in_runs(paragraph, ent["start"], ent["end"], replacement)
 
         # Save output document
         doc.save(output_path)
