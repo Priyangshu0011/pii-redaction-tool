@@ -84,9 +84,6 @@ docker run -p 8000:8000 pii-redactor
 ```
 ├── app.py                            # FastAPI Web Backend
 ├── run_redaction.py                  # CLI Redaction Script
-├── Enterprise Data - Assignment.docx # Assignment Specification
-├── Red Herring Prospectus.docx       # Input Document
-├── Red_Herring_Prospectus_REDACTED.docx # Redacted Output Document
 ├── EVALUATION_STRATEGY_AND_METRICS.md# Detailed Evaluation Report
 ├── requirements.txt                  # Python Dependencies
 ├── Procfile / render.yaml / Dockerfile# Deployment Configs

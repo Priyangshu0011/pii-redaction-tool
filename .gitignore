@@ -6,3 +6,5 @@ temp_uploads/*
 !temp_uploads/.gitkeep
 .vscode/
 .idea/
+*.docx
+
