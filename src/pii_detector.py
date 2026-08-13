@@ -128,29 +128,29 @@ class PIIDetector:
                     "source": "REGEX"
                 })
 
-        # 2. spaCy NER Detection
-        doc = self.nlp(text)
-        for ent in doc.ents:
-            pii_type = None
-            if ent.label_ == "PERSON":
-                pii_type = "PERSON"
-                # Filter out single words or non-name tokens if necessary
-                if len(ent.text.strip()) <= 2:
-                    continue
-            elif ent.label_ in ("ORG"):
-                pii_type = "COMPANY"
-            elif ent.label_ in ("GPE", "LOC", "FAC"):
-                pii_type = "ADDRESS"
+        # 2. spaCy NER Detection (Only run if uppercase characters exist)
+        if any(c.isupper() for c in text):
+            doc = self.nlp(text)
+            for ent in doc.ents:
+                pii_type = None
+                if ent.label_ == "PERSON":
+                    pii_type = "PERSON"
+                    if len(ent.text.strip()) <= 2:
+                        continue
+                elif ent.label_ in ("ORG"):
+                    pii_type = "COMPANY"
+                elif ent.label_ in ("GPE", "LOC", "FAC"):
+                    pii_type = "ADDRESS"
 
-            if pii_type and (not entity_types or pii_type in entity_types):
-                entities.append({
-                    "text": ent.text,
-                    "type": pii_type,
-                    "start": ent.start_char,
-                    "end": ent.end_char,
-                    "confidence": 0.88,
-                    "source": "NER"
-                })
+                if pii_type and (not entity_types or pii_type in entity_types):
+                    entities.append({
+                        "text": ent.text,
+                        "type": pii_type,
+                        "start": ent.start_char,
+                        "end": ent.end_char,
+                        "confidence": 0.88,
+                        "source": "NER"
+                    })
 
         # 3. Domain Specific Heuristic Detection (Indian Corporate & Prospectus Patterns)
         # Promoters / Contact Person / Registered Office Heuristics

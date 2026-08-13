@@ -3,6 +3,7 @@ import shutil
 import uuid
 import markdown
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -92,7 +93,7 @@ async def redact_file(
         anonymizer = Anonymizer(mode=mode)
         processor = DocxProcessor(detector=detector, anonymizer=anonymizer)
 
-        stats = processor.process_document(input_path, output_path, entity_types=selected_entities)
+        stats = await run_in_threadpool(processor.process_document, input_path, output_path, selected_entities)
 
         return JSONResponse({
             "success": True,
