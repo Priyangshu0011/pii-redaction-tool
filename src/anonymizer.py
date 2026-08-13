@@ -48,15 +48,23 @@ class Anonymizer:
             # Match capitalization style (ALL CAPS vs Title Case)
             fake_name = fake.name()
             if original_text.isupper():
-                return fake_name.upper()
+                fake_name = fake_name.upper()
+
+            # Map individual tokens to consistent fake name parts if multi-word
+            orig_parts = original_text.split()
+            fake_parts = fake_name.split()
+            if len(orig_parts) >= 2 and len(fake_parts) >= 2:
+                for op, fp in zip(orig_parts, fake_parts):
+                    sub_key = f"PERSON::{op.strip().lower()}"
+                    if sub_key not in self.entity_map:
+                        self.entity_map[sub_key] = fp
+
             return fake_name
 
         elif pii_type == "EMAIL":
-            # If email contains person name or company name, generate clean fake email
-            user_part = original_text.split("@")[0]
-            domain = "example.com"
-            clean_user = "".join([c for c in user_part if c.isalnum() or c in "._-"])
-            return f"redacted.{clean_user}@{domain}"
+            # Generate 100% synthetic clean email without leaking any original username characters
+            synthetic_id = hash_val % 89999 + 10000
+            return f"redacted.user{synthetic_id}@example.com"
 
         elif pii_type == "PHONE":
             # Preserve prefix if +91

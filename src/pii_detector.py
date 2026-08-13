@@ -18,6 +18,12 @@ STOP_CAPS = {
     'Equity', 'Act', 'Statement', 'Form', 'Year', 'Date', 'Annexure', 'Schedule', 'Sub', 'Clause'
 }
 
+ADDRESS_KEYWORDS = {
+    'road', 'street', 'avenue', 'lane', 'marg', 'nagar', 'taluka', 'district',
+    'village', 'building', 'flat', 'floor', 'suite', 'plot', 'estate', 'zone',
+    'city', 'state', 'pincode', 'colony', 'sector', 'tehsil', 'pradesh'
+}
+
 
 class PIIDetector:
     """
@@ -264,7 +270,10 @@ class PIIDetector:
             for c_idx, doc in zip(ner_candidate_positions, self.nlp.pipe(ner_texts, batch_size=32)):
                 for ent in doc.ents:
                     pii_type = None
-                    if ent.label_ == "PERSON":
+                    words = [w.lower() for w in ent.text.split()]
+                    if any(w in ADDRESS_KEYWORDS for w in words):
+                        pii_type = "ADDRESS"
+                    elif ent.label_ == "PERSON":
                         pii_type = "PERSON"
                         if len(ent.text.strip()) <= 2:
                             continue
@@ -283,7 +292,34 @@ class PIIDetector:
                             "source": "NER"
                         })
 
-        # 4. Resolve overlaps for each result
+        # 4. Sub-Name Propagation Pass for standalone Person names
+        detected_person_tokens = set()
+        for res_list in results:
+            for ent in res_list:
+                if ent["type"] == "PERSON":
+                    words = [w.strip() for w in ent["text"].split() if len(w.strip()) >= 3]
+                    for w in words:
+                        if w.lower() not in ("mr.", "ms.", "dr.", "m/s", "shri", "smt"):
+                            detected_person_tokens.add(w)
+
+        if detected_person_tokens and (not entity_types or "PERSON" in entity_types):
+            for c_idx, text in zip(candidate_indices, candidate_texts):
+                for token in detected_person_tokens:
+                    pattern = re.compile(rf'\b{re.escape(token)}\b')
+                    for match in pattern.finditer(text):
+                        matched_str = match.group()
+                        start, end = match.span()
+                        if not any(e["start"] == start and e["end"] == end for e in results[c_idx]):
+                            results[c_idx].append({
+                                "text": matched_str,
+                                "type": "PERSON",
+                                "start": start,
+                                "end": end,
+                                "confidence": 0.95,
+                                "source": "NAME_PROPAGATION"
+                            })
+
+        # 5. Resolve overlaps for each result
         for idx in range(len(results)):
             if results[idx]:
                 results[idx] = self._resolve_overlaps(results[idx])
