@@ -71,9 +71,9 @@ class PIIDetector:
                 re.IGNORECASE
             ),
             "PHONE": re.compile(
-                r'(?:(?:\+|\b00)\d{1,3}[-.\s]?)?'  # Country code like +91
-                r'(?:\(?\d{2,5}\)?[-.\s]?)'       # Area code
-                r'\d{3,4}[-.\s]?\d{3,4}\b'         # Main subscriber digits
+                r'(?:(?:\+|\b00)\d{1,3}[-.\s]?)?'          # Country code (+91, +1, etc.)
+                r'(?:\(?\d{2,5}\)?[-.\s]?)?'               # Area code or first 2-5 digits
+                r'\d{3,5}[-.\s]?\d{3,5}\b'                  # Main 6-10 digits in 3-5 digit chunks
             )
         }
 
@@ -88,25 +88,29 @@ class PIIDetector:
     def _is_valid_phone(self, match_str: str, full_text: str, start: int, end: int) -> bool:
         """Filter out false positive numbers like dates, currency, statutory sections, CIN numbers."""
         digits_only = re.sub(r'\D', '', match_str)
-        if len(digits_only) < 8 or len(digits_only) > 15:
+        if len(digits_only) < 7 or len(digits_only) > 15:
             return False
         
-        # Avoid matching years like 2025, 2013, page numbers
-        if digits_only in ("2013", "2025", "2024", "2026", "410501", "411045"):
+        # Avoid matching years or pincodes
+        if digits_only in ("2013", "2025", "2024", "2026", "410501", "411045", "400005"):
             return False
 
-        # Context check (e.g. if preceded by Telephone, Tel, Phone, Mobile, +91, Fax)
-        prefix = full_text[max(0, start - 25):start].lower()
-        suffix = full_text[end:min(len(full_text), end + 15)].lower()
+        # If starts with + (e.g. +91 98765 43210)
+        if match_str.startswith("+"):
+            return True
+
+        # Context check (e.g. if preceded/followed by Telephone, Tel, Phone, Mobile, +91, Fax, Contact)
+        prefix = full_text[max(0, start - 30):start].lower()
+        suffix = full_text[end:min(len(full_text), end + 20)].lower()
         
-        trigger_words = ["telephone", "tel", "phone", "mobile", "fax", "contact", "+91", "call", "cell"]
-        if any(w in prefix or w in suffix for w in trigger_words) or match_str.startswith("+"):
+        trigger_words = ["telephone", "tel", "phone", "mobile", "fax", "contact", "+91", "call", "cell", "officer"]
+        if any(w in prefix or w in suffix for w in trigger_words):
             return True
         
-        # If 10 digits starting with 6,7,8,9 (Indian mobile) or 020/022 (landline)
+        # If 10 digits starting with 6,7,8,9 (Indian mobile) or landlines starting with 0
         if len(digits_only) == 10 and digits_only[0] in "6789":
             return True
-        if match_str.startswith("0") or match_str.startswith("+91") or match_str.startswith("91"):
+        if match_str.startswith("0") or (len(digits_only) == 12 and digits_only.startswith("91")):
             return True
 
         return False
