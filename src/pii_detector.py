@@ -262,6 +262,25 @@ class PIIDetector:
                                 "source": "HEURISTIC"
                             })
 
+            # Title/Role-based Person Name Heuristics (e.g. Auditor Amit Deshmukh, Director Rajesh Sharma)
+            title_person_pattern = re.compile(
+                r'\b(?:Auditor|Director|Promoter|Officer|Partner|Signatory|Manager|Chairman|Secretary|Dr\.|Mr\.|Ms\.|Mrs\.|Prof\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b'
+            )
+            if not entity_types or "PERSON" in entity_types:
+                for match in title_person_pattern.finditer(text):
+                    name_str = match.group(1)
+                    start = match.start(1)
+                    end = match.end(1)
+                    if not any(stop in name_str for stop in ("Limited", "Company", "Board", "Trust", "Report")):
+                        results[c_idx].append({
+                            "text": name_str,
+                            "type": "PERSON",
+                            "start": start,
+                            "end": end,
+                            "confidence": 0.96,
+                            "source": "TITLE_HEURISTIC"
+                        })
+
         # 3. Batch spaCy NER via nlp.pipe
         ner_candidate_positions = []
         ner_texts = []

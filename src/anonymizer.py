@@ -67,16 +67,14 @@ class Anonymizer:
             return f"redacted.user{synthetic_id}@example.com"
 
         elif pii_type == "PHONE":
-            # Preserve prefix if +91
+            # Use reserved synthetic testing prefixes (e.g. +91 90000 XXXXX) so it's clearly dummy data
             if original_text.startswith("+91") or original_text.startswith("91"):
-                num_str = str(hash_val % 900000000 + 9000000000)
-                return f"+91 {num_str[:5]} {num_str[5:]}"
+                synthetic_digits = f"90000{hash_val % 89999 + 10000}"
+                return f"+91 {synthetic_digits[:5]} {synthetic_digits[5:]}"
             elif original_text.startswith("0"):
-                area = str(original_text[:3])
-                rest = str(hash_val % 90000000 + 10000000)
-                return f"{area}-{rest}"
+                return f"020-0000{hash_val % 8999 + 1000}"
             else:
-                return f"+1 ({hash_val % 800 + 200}) 555-{hash_val % 9000 + 1000}"
+                return f"+1 (555) 019-{hash_val % 8999 + 1000}"
 
         elif pii_type == "COMPANY":
             fake_company = fake.company()
