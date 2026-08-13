@@ -2,6 +2,7 @@ import os
 import shutil
 import uuid
 import markdown
+import gc
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
@@ -94,6 +95,7 @@ async def redact_file(
         processor = DocxProcessor(detector=detector, anonymizer=anonymizer)
 
         stats = await run_in_threadpool(processor.process_document, input_path, output_path, selected_entities)
+        gc.collect()
 
         return JSONResponse({
             "success": True,

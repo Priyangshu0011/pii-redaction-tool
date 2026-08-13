@@ -2,13 +2,13 @@ import re
 import spacy
 from typing import List, Dict, Any, Tuple
 
-# Load spaCy English model with only NER enabled for max speed
+# Load spaCy English model with only NER enabled for max speed and min memory
 try:
-    nlp = spacy.load("en_core_web_sm", disable=["parser", "lemmatizer", "attribute_ruler"])
+    nlp = spacy.load("en_core_web_sm", disable=["parser", "lemmatizer", "attribute_ruler", "tagger"])
 except Exception:
     import spacy.cli
     spacy.cli.download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm", disable=["parser", "lemmatizer", "attribute_ruler"])
+    nlp = spacy.load("en_core_web_sm", disable=["parser", "lemmatizer", "attribute_ruler", "tagger"])
 
 
 class PIIDetector:
@@ -245,7 +245,7 @@ class PIIDetector:
                 ner_texts.append(text)
 
         if ner_texts:
-            for c_idx, doc in zip(ner_candidate_positions, self.nlp.pipe(ner_texts, batch_size=250)):
+            for c_idx, doc in zip(ner_candidate_positions, self.nlp.pipe(ner_texts, batch_size=32)):
                 for ent in doc.ents:
                     pii_type = None
                     if ent.label_ == "PERSON":
