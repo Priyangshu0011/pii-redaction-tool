@@ -11,6 +11,14 @@ except Exception:
     nlp = spacy.load("en_core_web_sm", disable=["parser", "lemmatizer", "attribute_ruler", "tagger"])
 
 
+STOP_CAPS = {
+    'Paragraph', 'The', 'In', 'This', 'For', 'And', 'Or', 'On', 'At', 'By', 'With', 'From', 'As',
+    'To', 'If', 'No', 'Any', 'All', 'Our', 'We', 'Its', 'Table', 'Part', 'Section', 'Page', 'Item',
+    'Note', 'Total', 'Net', 'Gross', 'Cash', 'Financial', 'Report', 'Company', 'Board', 'Share',
+    'Equity', 'Act', 'Statement', 'Form', 'Year', 'Date', 'Annexure', 'Schedule', 'Sub', 'Clause'
+}
+
+
 class PIIDetector:
     """
     Multi-layer hybrid PII detector combining Regex, spaCy NER, and Domain-Specific Heuristics.
@@ -178,6 +186,14 @@ class PIIDetector:
         entities = self._resolve_overlaps(entities)
         return entities
 
+    def _is_ner_candidate(self, text: str) -> bool:
+        """Check if text contains potential Proper Noun candidates for spaCy NER."""
+        if not any(c.isupper() for c in text):
+            return False
+        words = re.findall(r'\b[A-Z][a-zA-Z0-9.\-]+\b', text)
+        proper_words = [w for w in words if w not in STOP_CAPS]
+        return len(proper_words) >= 1
+
     def detect_batch(self, texts: List[str], entity_types: List[str] = None) -> List[List[Dict[str, Any]]]:
         """
         High-performance batch detection across multiple texts using spaCy nlp.pipe.
@@ -240,7 +256,7 @@ class PIIDetector:
         ner_candidate_positions = []
         ner_texts = []
         for c_idx, text in zip(candidate_indices, candidate_texts):
-            if any(c.isupper() for c in text):
+            if self._is_ner_candidate(text):
                 ner_candidate_positions.append(c_idx)
                 ner_texts.append(text)
 
