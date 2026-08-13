@@ -7,4 +7,5 @@ temp_uploads/*
 .vscode/
 .idea/
 *.docx
+!Red_Herring_Prospectus_REDACTED.docx
 

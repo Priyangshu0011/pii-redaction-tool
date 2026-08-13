@@ -145,16 +145,35 @@ def ensure_sample_docx(file_path: str):
         print(f"Error generating fallback sample docx: {e}")
 
 
+@app.get("/api/download-sample")
+async def download_sample():
+    """Download pre-processed real redacted sample document."""
+    file_path = os.path.join(BASE_DIR, "Red_Herring_Prospectus_REDACTED.docx")
+    if not os.path.exists(file_path):
+        file_path = os.path.join(BASE_DIR, "REDACTED_d12c5821_Red Herring Prospectus.docx")
+    if not os.path.exists(file_path):
+        file_path = os.path.join(TEMP_DIR, "Red_Herring_Prospectus_REDACTED.docx")
+        ensure_sample_docx(file_path)
+
+    return FileResponse(
+        file_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename="Red_Herring_Prospectus_REDACTED.docx"
+    )
+
+
 @app.get("/api/download/{filename}")
 async def download_file(filename: str):
     """Download processed redacted .docx file."""
     safe_filename = os.path.basename(filename)
     file_path = os.path.join(TEMP_DIR, safe_filename)
 
-    if safe_filename == "Red_Herring_Prospectus_REDACTED.docx":
-        file_path = os.path.join(BASE_DIR, safe_filename)
-        if not os.path.exists(file_path):
-            file_path = os.path.join(TEMP_DIR, safe_filename)
+    if safe_filename in ("Red_Herring_Prospectus_REDACTED.docx", "sample", "REDACTED_d12c5821_Red Herring Prospectus.docx"):
+        base_sample = os.path.join(BASE_DIR, "Red_Herring_Prospectus_REDACTED.docx")
+        if not os.path.exists(base_sample):
+            base_sample = os.path.join(BASE_DIR, "REDACTED_d12c5821_Red Herring Prospectus.docx")
+        if os.path.exists(base_sample):
+            file_path = base_sample
 
     if not os.path.exists(file_path):
         ensure_sample_docx(file_path)
