@@ -11,13 +11,13 @@
             border: 1px solid var(--border-color);
             border-radius: var(--radius-lg);
             padding: 3rem;
-            backdrop-filter: blur(16px);
+            box-shadow: var(--shadow-card);
             margin-top: 1rem;
         }
         .doc-container h1, .doc-container h2, .doc-container h3 {
             font-family: var(--font-heading);
-            color: #fff;
-            margin-top: 1.5rem;
+            color: #0f172a;
+            margin-top: 1.75rem;
             margin-bottom: 0.75rem;
         }
         .doc-container h1 { font-size: 2.2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
@@ -26,6 +26,7 @@
             width: 100%;
             border-collapse: collapse;
             margin: 1.5rem 0;
+            background: #ffffff;
         }
         .doc-container th, .doc-container td {
             border: 1px solid var(--border-color);
@@ -33,29 +34,40 @@
             text-align: left;
         }
         .doc-container th {
-            background: rgba(99, 102, 241, 0.15);
-            color: #fff;
+            background: rgba(79, 70, 229, 0.06);
+            color: #0f172a;
             font-family: var(--font-heading);
+            font-weight: 600;
         }
-        .doc-container code, .doc-container pre {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--border-color);
+        .doc-container code {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
             border-radius: var(--radius-sm);
             padding: 0.2rem 0.4rem;
             font-family: monospace;
-            color: #a5b4fc;
+            color: var(--accent-primary);
+            font-size: 0.9em;
         }
         .doc-container pre {
-            padding: 1rem;
+            background: #0f172a;
+            color: #f8fafc;
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
             overflow-x: auto;
             margin: 1rem 0;
         }
+        .doc-container pre code {
+            background: transparent;
+            border: none;
+            color: #f8fafc;
+        }
         .doc-container blockquote {
             border-left: 4px solid var(--accent-primary);
-            background: rgba(99, 102, 241, 0.08);
+            background: rgba(79, 70, 229, 0.05);
             padding: 1rem 1.25rem;
             border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
             margin: 1rem 0;
+            color: var(--text-secondary);
         }
     </style>
 </head>
